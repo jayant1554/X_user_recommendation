@@ -1,0 +1,12 @@
+rank,user_id,name,city,country,interests,score
+0,random_test_user_001,jayant,Seattle,United States,sports|art,
+1,62557,Jeff Floyd,lemay,united states,,0.926900
+2,6836,Douglas Nelson,florissant,united states,,0.926800
+3,88245,Angelia Dome,richmond,united states,,0.926700
+4,93569,George Rogal,amherst center,united states,,0.926600
+5,99584,Sylvia Camara,poplar bluff,united states,,0.926500
+6,93354,Wendy Estevez,berea,united states,,0.926400
+7,19250,Tiffany Johnson,broken arrow,united states,,0.925900
+8,83417,Caitlin Howell,dallas,united states,,0.925800
+9,29220,George Davis,stonecrest,united states,,0.763100
+10,95521,Anthony Limbaugh,lamont,united states,,0.762500

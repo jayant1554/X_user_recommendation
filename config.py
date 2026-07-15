@@ -1,0 +1,24 @@
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+DATA_DIR = PROJECT_ROOT / "data"
+RAW_DATA_DIR = DATA_DIR / "raw"
+PROCESSED_DATA_DIR = DATA_DIR / "processed"
+SPLIT_DATA_DIR = DATA_DIR / "split"
+
+MODEL_DIR = PROJECT_ROOT / "models"
+OUTPUT_DIR = PROJECT_ROOT / "outputs"
+
+# Retrieval
+TOP_K_CANDIDATES = 100
+TOP_N_RECOMMENDATIONS = 10
+
+INTEREST_WEIGHT = 0.7
+GEO_WEIGHT = 0.3
+
+# Training
+RANDOM_STATE = 42
+BATCH_SIZE = 128
+LEARNING_RATE = 1e-3
+EPOCHS = 20

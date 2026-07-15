@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "x-user-recommendation"
+version = "0.1.0"
+description = "Two-stage user recommendation system with FastAPI serving and PyTorch ranking"
+authors = [
+	{ name = "Jayant Bisht", email = "jk913600@gmail.com" },
+]
+readme = "README.MD"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
