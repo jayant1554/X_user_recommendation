@@ -19,9 +19,6 @@ SKLEARN_UNKNOWN_SENTINEL = -1
 
 
 class FeatureEncoder:
-    """Fit once on the training split, then encode_user() everywhere else
-    (train/val/test/live inference) using the same fitted transformers."""
-
     def __init__(self, max_interests: int = 10) -> None:
         self.max_interests = max_interests
         self.interest_to_idx: dict[str, int] | None = None

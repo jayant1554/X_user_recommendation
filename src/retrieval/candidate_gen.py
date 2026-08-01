@@ -37,7 +37,7 @@ def combined_score(a: ProcessedUser, b: ProcessedUser) -> float:
         + LOCATION_WEIGHT * location_score(a, b)
     )
 
-
+ 
 class CandidateGenerator:
 
     def __init__(self, users: list[ProcessedUser]) -> None:

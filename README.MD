@@ -77,6 +77,8 @@ Start the FastAPI server after training.
 ```bash
 uvicorn src.api.main:app --reload
 ```
+and to test use 
+`http://127.0.0.1:8000/docs`
 
 The API endpoints are:
 

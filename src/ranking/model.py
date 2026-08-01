@@ -1,24 +1,3 @@
-"""
-Stage 2 — Neural Ranking: Two-Tower model.
-
-Features used: interests, gender, country, age. City is NOT used here --
-it lives in Stage 1 retrieval only. Ranking works off a coarser,
-lower-cardinality feature set than retrieval; deliberate stage-scope
-difference (city has extremely high cardinality relative to dataset size
--- most cities have only 1-2 users -- so it isn't a useful learned
-embedding at this scale).
-
-Both target and candidate users are the same kind of entity, so a single
-shared UserTower encodes both sides rather than two independently-weighted
-towers -- deliberate design choice.
-
-Affinity score: sigmoid(temperature * cosine_similarity(target_emb,
-candidate_emb)) -- cosine + learnable temperature instead of a raw dot
-product, since raw dot products are unbounded and caused a "most scores
-saturate near 1.0" miscalibration during early development. L2-normalizing
-both embeddings bounds similarity to [-1, 1] before the sigmoid.
-"""
-
 from __future__ import annotations
 
 import torch
@@ -114,7 +93,6 @@ class TwoTowerModel(nn.Module):
         target: dict[str, torch.Tensor],
         candidate: dict[str, torch.Tensor],
     ) -> torch.Tensor:
-        """Score (target, candidate) pairs -- one per row (training)."""
         t_emb = F.normalize(self.encode(target), dim=-1)
         c_emb = F.normalize(self.encode(candidate), dim=-1)
         cosine_sim = (t_emb * c_emb).sum(dim=-1)
@@ -137,11 +115,6 @@ class TwoTowerModel(nn.Module):
         candidates: dict[str, torch.Tensor],
         retrieval_scores: list[float] | torch.Tensor,
     ) -> torch.Tensor:
-        """Blend the rule-based retrieval score with the neural score.
-
-        The model file owns the ranking math; the API layer just prepares
-        tensors and turns the final scores into a response.
-        """
 
         with torch.no_grad():
             neural_scores = self.score_candidates(target, candidates)
