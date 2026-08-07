@@ -18,10 +18,10 @@ TEST_USER = {
 	"UserID": "random_test_user_001",
 	"Name": "jayant",
 	"Gender": "male",
-	"DOB": "2005-06-07",
+	"DOB": "2005-8-08",
 	"Interests": "'sports', 'art'",
-	"City": "Seattle",
-	"Country": "United States",
+	"City": "delhi",
+	"Country": "india",
 }
 
 
