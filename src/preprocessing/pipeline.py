@@ -4,7 +4,7 @@ import logging
 
 from src.ingestion.schema import ProcessedUser, User
 
-from .validators import (
+from src.preprocessing.validators import (
     calculate_age,
     parse_birth_date,
     validate_user,
@@ -52,6 +52,8 @@ def preprocess_users(
                 interests=_normalize_interests(user.interests),
                 city=_normalize_text(user.city),
                 country=_normalize_text(user.country),
+                lat=user.lat,
+                lng=user.lng,
             )
         )
 

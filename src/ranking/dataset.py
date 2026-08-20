@@ -10,8 +10,6 @@ class RankingDataset(Dataset):
     def __init__(self, sampler: PairSampler, encoder: FeatureEncoder) -> None:
         self.sampler = sampler
         self.encoder = encoder
-        # One encode_batch() call for the whole split, instead of one
-        # encode_user() call per pair per epoch -- see module docstring.
         self._encoded = encoder.encode_batch(sampler.users)
 
     def __len__(self) -> int:
@@ -30,7 +28,7 @@ class RankingDataset(Dataset):
 
 
 def ranking_collate_fn(batch: list[dict]) -> dict:
-    keys = ("age", "gender_id", "country_id", "interest_ids", "interest_mask")
+    keys = ("age", "gender_id", "country_id", "interest_ids", "interest_mask", "lat", "lng")
 
     def _stack_side(side: str) -> dict[str, torch.Tensor]:
         return {key: torch.stack([item[side][key] for item in batch]) for key in keys}

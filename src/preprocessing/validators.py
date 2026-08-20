@@ -45,3 +45,7 @@ def validate_user(user: User) -> None:
 
     if not user.interests:
         raise ValueError(f"User {user.user_id}: No interests found.")
+    if any(not interest.strip() for interest in user.interests):
+        raise ValueError(f"User {user.user_id}: Empty interest found.")
+    if user.lat is None or user.lng is None:
+        raise ValueError(f"User {user.user_id}: Missing latitude or longitude.")

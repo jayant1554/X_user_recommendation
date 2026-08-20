@@ -27,7 +27,7 @@ class UserTower(nn.Module):
         self.gender_emb = nn.Embedding(num_genders, gender_dim)
         self.country_emb = nn.Embedding(num_countries, country_dim)
 
-        combined_dim = interest_dim + gender_dim + country_dim + 1  # +1 for age scalar
+        combined_dim = interest_dim + gender_dim + country_dim + 3  # +3 for age, lat, lng
         self.mlp = nn.Sequential(
             nn.Linear(combined_dim, hidden_dim),
             nn.ReLU(),
@@ -44,9 +44,11 @@ class UserTower(nn.Module):
 
         gender_vec = self.gender_emb(features["gender_id"])
         country_vec = self.country_emb(features["country_id"])
-        age_vec = features["age"].unsqueeze(-1)                       # (B, 1)
+        age_vec = features["age"].unsqueeze(-1)                       
+        lat_vec = features["lat"].unsqueeze(-1)
+        lng_vec = features["lng"].unsqueeze(-1)
 
-        combined = torch.cat([interest_vec, gender_vec, country_vec, age_vec], dim=-1)
+        combined = torch.cat([interest_vec, gender_vec, country_vec, age_vec, lat_vec, lng_vec], dim=-1)
         return self.mlp(combined)
 
 

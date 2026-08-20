@@ -1,8 +1,10 @@
 from __future__ import annotations
-
+from math import radians, sin, cos, sqrt, atan2
 import heapq
 from collections import defaultdict
 from dataclasses import dataclass
+
+from requests.packages import target
 
 from src.ingestion.schema import ProcessedUser
 
@@ -22,14 +24,76 @@ def interest_score(a: ProcessedUser, b: ProcessedUser) -> float:
         return 0.0
     return inter / len(a.interest_set | b.interest_set)
 
+def haversine_distance(
+    lat1: float,
+    lon1: float,
+    lat2: float,
+    lon2: float,
+) -> float:
+    """
+    Great-circle distance in kilometers.
+    """
+
+    R = 6371.0
+
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+    lat2 = radians(lat2)
+    lon2 = radians(lon2)
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    )
+
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    return R * c
+
 
 def location_score(a: ProcessedUser, b: ProcessedUser) -> float:
+    if (
+        a.lat is None
+        or a.lng is None
+        or b.lat is None
+        or b.lng is None
+    ):
+        return 0.0
+
+    distance = haversine_distance(
+        a.lat,
+        a.lng,
+        b.lat,
+        b.lng,
+    )
+
+    if distance <= 10:
+        return 1.0
+
+    if distance <= 50:
+        return 0.9
+
+    if distance <= 100:
+        return 0.8
+
+    if distance <= 250:
+        return 0.6
+
+    if distance <= 500:
+        return 0.4
+
+    if distance <= 1000:
+        return 0.2
+
+    return 0.0
     if a.city == b.city:
         return 1.0
     if a.country == b.country:
         return 0.7
     return 0.0
-
 
 def combined_score(a: ProcessedUser, b: ProcessedUser) -> float:
     return (
@@ -62,10 +126,8 @@ class CandidateGenerator:
 
         for interest in target.interests:
             candidate_ids.update(self.interest_index.get(interest, []))
-
         candidate_ids.update(self.city_index.get(target.city, []))
         candidate_ids.update(self.country_index.get(target.country, []))
-
         candidate_ids.discard(target.user_id)
 
         scored = []

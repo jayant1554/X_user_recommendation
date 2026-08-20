@@ -30,6 +30,7 @@ class FeatureEncoder:
             handle_unknown="use_encoded_value", unknown_value=SKLEARN_UNKNOWN_SENTINEL
         )
         self.age_scaler = StandardScaler()
+        self.lat_lng_scaler = StandardScaler()
         self._is_fitted = False
 
     @staticmethod
@@ -44,17 +45,20 @@ class FeatureEncoder:
         genders: list[list[str]] = []
         countries: list[list[str]] = []
         ages: list[list[float]] = []
+        lat_lngs: list[list[float]] = []
 
         for user in users:
             interests.update(user.interests)
             genders.append([user.gender])
             countries.append([user.country])
             ages.append([float(user.age)])
+            lat_lngs.append([float(user.lat), float(user.lng)])
 
         self.interest_to_idx = self._build_interest_vocab(interests)
         self.gender_encoder.fit(genders)
         self.country_encoder.fit(countries)
         self.age_scaler.fit(ages)
+        self.lat_lng_scaler.fit(lat_lngs)
 
         self._is_fitted = True
         logger.info(
@@ -89,9 +93,14 @@ class FeatureEncoder:
         gender_id = self._ordinal_transform(self.gender_encoder, user.gender)
         country_id = self._ordinal_transform(self.country_encoder, user.country)
         age_z = float(self.age_scaler.transform([[float(user.age)]])[0][0])
+        lat_z, lng_z = self.lat_lng_scaler.transform(
+            [[float(user.lat), float(user.lng)]]
+        )[0]
 
         return {
             "age": torch.tensor(age_z, dtype=torch.float32),
+            "lat": torch.tensor(float(lat_z), dtype=torch.float32),
+            "lng": torch.tensor(float(lng_z), dtype=torch.float32),
             "gender_id": torch.tensor(gender_id, dtype=torch.long),
             "country_id": torch.tensor(country_id, dtype=torch.long),
             "interest_ids": torch.tensor(interest_ids, dtype=torch.long),
@@ -102,7 +111,15 @@ class FeatureEncoder:
         encoded = [self.encode_user(u) for u in users]
         return {
             key: torch.stack([e[key] for e in encoded])
-            for key in ("age", "gender_id", "country_id", "interest_ids", "interest_mask")
+            for key in (
+                "age",
+                "lat",
+                "lng",
+                "gender_id",
+                "country_id",
+                "interest_ids",
+                "interest_mask",
+            )
         }
 
     @property
@@ -128,6 +145,7 @@ class FeatureEncoder:
         joblib.dump(self.gender_encoder, model_dir / "gender_encoder.pkl")
         joblib.dump(self.country_encoder, model_dir / "country_encoder.pkl")
         joblib.dump(self.age_scaler, model_dir / "age_scaler.pkl")
+        joblib.dump(self.lat_lng_scaler, model_dir / "lat_lng_scaler.pkl")
 
         with open(model_dir / "encoder_config.json", "w", encoding="utf-8") as f:
             json.dump({"max_interests": self.max_interests}, f, indent=2)
@@ -147,6 +165,7 @@ class FeatureEncoder:
         encoder.gender_encoder = joblib.load(model_dir / "gender_encoder.pkl")
         encoder.country_encoder = joblib.load(model_dir / "country_encoder.pkl")
         encoder.age_scaler = joblib.load(model_dir / "age_scaler.pkl")
+        encoder.lat_lng_scaler = joblib.load(model_dir / "lat_lng_scaler.pkl")
         encoder._is_fitted = True
 
         logger.info("Encoder loaded from %s", model_dir)

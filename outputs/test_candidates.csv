@@ -1,12 +1,12 @@
-rank,user_id,name,city,country,interests,score
-0,random_test_user_001,jayant,delhi,india,sports|art,
-1,4651,Emma Hamilton,cherpulassery,india,,0.926800
-2,73363,Marion Hunn,unhel,india,,0.926700
-3,47399,Henry Sifuentes,kālāvad,india,,0.926400
-4,95760,Philip Parks,akbarpur,india,,0.926200
-5,60909,Jared Schiller,kātoya,india,,0.763100
-6,52599,Michael Culver,lakshmeshwar,india,,0.762500
-7,79805,Jacob Gentry,hoshiārpur,india,,0.762400
-8,44932,John Rizzo,patiāla,india,,0.762200
-9,88470,Steven Steed,bāruni,india,,0.762000
-10,11618,Leroy Stonerock,bāntva,india,,0.762000
+rank,user_id,name,city,country,interests,final_score
+0,888888,Jayant,Delhi,India,sports|art,
+1,4651,Emma Hamilton,cherpulassery,india,,0.9932
+2,61447,Maggie Banks,lāwar khās,india,,0.8276
+3,73363,Marion Hunn,unhel,india,,0.8251
+4,95760,Philip Parks,akbarpur,india,,0.8251
+5,47399,Henry Sifuentes,kālāvad,india,,0.8249
+6,79805,Jacob Gentry,hoshiārpur,india,,0.8192
+7,11618,Leroy Stonerock,bāntva,india,,0.8185
+8,30616,Barbara Gonzales,naujoji vilnia,lithuania,,0.7545
+9,67450,Elizabeth Hudson,goražde,bosnia and herzegovina,,0.7531
+10,72401,Edna Davidson,nyaungdon,myanmar,,0.7529

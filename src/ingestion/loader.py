@@ -18,6 +18,8 @@ EXPECTED_COLUMNS = {
     "Interests",
     "City",
     "Country",
+    "lat",
+    "lng",
 }
 
 
@@ -72,6 +74,8 @@ def load_users(csv_path: str | Path) -> list[User]:
                 interests=_parse_interests(row.Interests),
                 city=row.City,
                 country=row.Country,
+                lat=row.lat,
+                lng=row.lng,
             )
         )
 

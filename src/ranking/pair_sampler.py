@@ -1,21 +1,30 @@
 from __future__ import annotations
-
-import logging
 import random
 from collections import defaultdict
 
-from src.ingestion.schema import ProcessedUser
+from requests.packages import target
 
-logger = logging.getLogger(__name__)
+from src.ingestion.schema import ProcessedUser
+from src.retrieval.utils.logger import logger
+from src.retrieval.candidate_gen import haversine_distance
 
 MAX_CANDIDATES_PER_INTEREST = 500
+def jaccard_similarity(a: ProcessedUser, b: ProcessedUser) -> float:
+    a_set = set(a.interests)
+    b_set = set(b.interests)
 
+    if not a_set or not b_set:
+        return 0.0
 
-def is_positive(target: ProcessedUser, candidate: ProcessedUser) -> bool:
-    if target.country != candidate.country:
-        return False
-    return len(set(target.interests) & set(candidate.interests)) > 0
-
+    return len(a_set & b_set) / len(a_set | b_set)
+def is_positive(target: ProcessedUser, candidate: ProcessedUser, max_distance_km: float = 500.0) -> bool:
+  distance = haversine_distance(
+    target.lat,target.lng,candidate.lat,candidate.lng)
+  if distance > max_distance_km:
+    return False
+  
+  return jaccard_similarity(target, candidate) >= 0.30
+  
 
 class PairSampler:
     def __init__(
@@ -56,7 +65,6 @@ class PairSampler:
             if idx == user_index or is_positive(user, self.users[idx]):
                 continue
             return idx
-
     def _build_pairs(self) -> list[tuple[int, int, int]]:
         pairs: list[tuple[int, int, int]] = []
         for idx in range(len(self.users)):

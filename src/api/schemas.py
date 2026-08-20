@@ -1,32 +1,69 @@
 from __future__ import annotations
 
 import ast
+from datetime import date
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from src.ingestion.schema import ProcessedUser
-from src.preprocessing.validators import calculate_age, parse_birth_date
 
+
+# ---------------------------------------------------------------------------
+# Shared helpers
+# ---------------------------------------------------------------------------
 
 def _normalize_text(value: str) -> str:
     return value.strip().lower()
 
 
 def _normalize_interests(interests: list[str]) -> list[str]:
-    cleaned = {_normalize_text(interest) for interest in interests if interest.strip()}
-    return sorted(cleaned)
+    return sorted({_normalize_text(i) for i in interests if i.strip()})
 
 
-class RecommendationRequest(BaseModel):
-    user_id: str = Field(..., example="TEST_USER")
-    name: str = Field(..., example="Jayant Bisht")
-    gender: str = Field(..., example="Male")
-    age: int = Field(..., ge=13)
-    interests: list[str] = Field(..., min_length=1)
-    city: str = Field(..., example="Delhi")
-    country: str = Field(..., example="India")
+def _parse_interests_raw(value: object) -> list[str]:
+    """Accepts a list, a stringified list/tuple, or a comma-separated string
+    and returns a cleaned list of raw (not yet normalized) interest strings.
+    Shared by both request schemas so there's exactly one parsing implementation.
+    """
+    if isinstance(value, list):
+        return [str(i).strip() for i in value if str(i).strip()]
+    if value is None:
+        return []
 
-    def to_processed_user(self) -> ProcessedUser:
+    text = str(value).strip()
+    if not text:
+        return []
+
+    try:
+        parsed = ast.literal_eval(text)
+        if isinstance(parsed, str):
+            return [parsed.strip()]
+        if isinstance(parsed, (list, tuple, set)):
+            return [str(i).strip() for i in parsed if str(i).strip()]
+    except (ValueError, SyntaxError):
+        pass
+
+    return [s.strip().strip("'\"") for s in text.split(",") if s.strip().strip("'\"")]
+
+
+def _compute_age(dob: date) -> int:
+    today = date.today()
+    age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    if age < 0:
+        raise ValueError("DOB is in the future")
+    return age
+
+
+# ---------------------------------------------------------------------------
+# Base config - avoids repeating model_config on every request schema
+# ---------------------------------------------------------------------------
+
+class _APIRequestBase(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+
+class _UserMixin(_APIRequestBase):
+    def to_processed_user(self, lat: float, lng: float) -> ProcessedUser:
         return ProcessedUser(
             user_id=self.user_id,
             name=self.name,
@@ -35,60 +72,59 @@ class RecommendationRequest(BaseModel):
             interests=_normalize_interests(self.interests),
             city=_normalize_text(self.city),
             country=_normalize_text(self.country),
+            lat=round(lat, 6),
+            lng=round(lng, 6),
         )
 
 
-class RawRecommendationRequest(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
+# ---------------------------------------------------------------------------
+# Request schemas
+# ---------------------------------------------------------------------------
 
-    user_id: str = Field(..., alias="UserID", example="00001")
-    name: str = Field(..., alias="Name", example="Jesse Lawhorn")
-    gender: str = Field(..., alias="Gender", example="Female")
-    dob: str = Field(..., alias="DOB", example="1958-10-15")
-    interests: list[str] = Field(..., alias="Interests", min_length=1)
-    city: str = Field(..., alias="City", example="Sibolga")
-    country: str = Field(..., alias="Country", example="Indonesia")
+class RecommendationRequest(_UserMixin):
+    user_id: str = Field(..., example="TEST_USER")
+    name: str = Field(..., example="Jayant Bisht")
+    gender: str = Field(..., example="Male")
+    age: int = Field(..., ge=13, le=120)
+    interests: list[str] = Field(..., min_length=1, example=["art", "music", "sports"])
+    city: str = Field(..., example="Delhi")
+    country: str = Field(..., example="India")
 
     @field_validator("interests", mode="before")
     @classmethod
     def _parse_interests(cls, value: object) -> list[str]:
-        if isinstance(value, list):
-            return [str(item).strip() for item in value if str(item).strip()]
+        return _parse_interests_raw(value)
 
-        if value is None:
-            return []
 
-        text = str(value).strip()
-        if not text:
-            return []
+class RawRecommendationRequest(_UserMixin):
+    """Accepts the raw ingestion-style field names (UserID, DOB, etc.) via
+    aliases, so no manual property-per-field boilerplate is needed - Pydantic
+    handles the name mapping directly."""
 
-        try:
-            parsed = ast.literal_eval(text)
-            if isinstance(parsed, str):
-                return [parsed.strip()]
-            if isinstance(parsed, (list, tuple, set)):
-                return [str(item).strip() for item in parsed if str(item).strip()]
-        except (ValueError, SyntaxError):
-            pass
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid", populate_by_name=True)
 
-        return [
-            piece.strip().strip("'").strip('"')
-            for piece in text.split(",")
-            if piece.strip().strip("'").strip('"')
-        ]
+    user_id: str = Field(..., alias="UserID")
+    name: str = Field(..., alias="Name")
+    gender: str = Field(..., alias="Gender")
+    dob: date = Field(..., alias="DOB")
+    raw_interests: str = Field(..., alias="Interests")
+    city: str = Field(..., alias="City")
+    country: str = Field(..., alias="Country")
 
-    def to_processed_user(self) -> ProcessedUser:
-        birth_date = parse_birth_date(self.dob)
-        return ProcessedUser(
-            user_id=self.user_id,
-            name=self.name,
-            gender=_normalize_text(self.gender),
-            age=calculate_age(birth_date),
-            interests=_normalize_interests(self.interests),
-            city=_normalize_text(self.city),
-            country=_normalize_text(self.country),
-        )
+    @computed_field  # type: ignore[misc]
+    @property
+    def age(self) -> int:
+        return _compute_age(self.dob)
 
+    @computed_field  # type: ignore[misc]
+    @property
+    def interests(self) -> list[str]:
+        return _parse_interests_raw(self.raw_interests)
+
+
+# ---------------------------------------------------------------------------
+# Response schemas
+# ---------------------------------------------------------------------------
 
 class RetrievedCandidate(BaseModel):
     rank: int
@@ -99,24 +135,19 @@ class RetrievedCandidate(BaseModel):
     retrieval_score: float
 
 
-class RecommendedUser(BaseModel):
-    rank: int
-    user_id: str
-    name: str
-    city: str
-    country: str
-    retrieval_score: float
+class RecommendedUser(RetrievedCandidate):
     final_score: float
 
 
-class RecommendationResponse(BaseModel):
+class _RecommendationResultBase(BaseModel):
     retrieved_count: int
     top_k: int
+    recommendations: list[RecommendedUser]
+
+
+class RecommendationResponse(_RecommendationResultBase):
     retrieved: list[RetrievedCandidate]
-    recommendations: list[RecommendedUser]
 
 
-class RecommendationSummaryResponse(BaseModel):
-    retrieved_count: int
-    top_k: int
-    recommendations: list[RecommendedUser]
+class RecommendationSummaryResponse(_RecommendationResultBase):
+    pass

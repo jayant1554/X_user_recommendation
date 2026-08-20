@@ -1,14 +1,19 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from src.retrieval.utils.logger import logger
 
+from src.api.dependencies import app_state
 from src.api.schemas import (
-    RecommendationRequest,
     RawRecommendationRequest,
+    RecommendationRequest,
     RecommendationResponse,
     RecommendationSummaryResponse,
 )
-from src.api.services import rank_recommendations, rank_recommendations_summary
+from src.api.services import (
+    rank_recommendations,
+    rank_recommendations_summary,
+)
 
 router = APIRouter(tags=["Recommendation"])
 
@@ -18,12 +23,35 @@ router = APIRouter(tags=["Recommendation"])
     response_model=RecommendationResponse,
 )
 def recommend(request: RecommendationRequest):
-    return rank_recommendations(request.to_processed_user())
 
-
-@router.post(
-    "/recommend/raw",
-    response_model=RecommendationSummaryResponse,
+    lat, lng = app_state.geocoder.get_coordinates(
+        request.city,
+        request.country,
+    )
+    logger.info(
+    "Geocoded %s, %s -> lat=%.6f lng=%.6f",
+    request.city,
+    request.country,
+    lat,
+    lng,
 )
+    user = request.to_processed_user(lat, lng)
+    return rank_recommendations(user)
+
+
+@router.post("/recommend/raw")
 def recommend_raw(request: RawRecommendationRequest):
-    return rank_recommendations_summary(request.to_processed_user())
+
+    lat, lng = app_state.geocoder.get_coordinates(
+        request.city,
+        request.country,
+    )
+    logger.info(
+        "Geocoded %s, %s -> lat=%.6f lng=%.6f",
+        request.city,
+        request.country,
+        lat,
+        lng,
+    )
+    user = request.to_processed_user(lat, lng)
+    return rank_recommendations_summary(user)

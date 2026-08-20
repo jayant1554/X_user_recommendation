@@ -4,7 +4,7 @@ from src.retrieval.utils.logger import logger
 from src.ingestion.loader import load_users
 from src.ingestion.splitter import split_dataset
 
-DATA_PATH = Path("data/raw/Assessment_TwitterDataset.csv")
+DATA_PATH = Path("data/processed/geouser.csv")
 
 
 def main():

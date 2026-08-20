@@ -7,19 +7,17 @@ import sys
 from pathlib import Path
 
 import requests
+from src.retrieval.utils.logger import logger 
 
-logging.basicConfig(level=logging.INFO, format="%(message)s")
-logger = logging.getLogger(__name__)
-
-API_URL = "http://127.0.0.1:8000/recommend/raw"
+API_URL = "http://127.0.0.1:8000/recommend"
 OUTPUT_PATH = Path("outputs/test_candidates.csv")
 
 TEST_USER = {
-	"UserID": "random_test_user_001",
+	"UserID": "888888",
 	"Name": "jayant",
 	"Gender": "male",
-	"DOB": "2005-8-08",
-	"Interests": "'sports', 'art'",
+	"age": 25,
+	"Interests": ["sports", "art"],
 	"City": "delhi",
 	"Country": "india",
 }

@@ -24,49 +24,38 @@ from src.ranking.pair_sampler import PairSampler
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-DATA_PATH = "data/raw/Assessment_TwitterDataset.csv"
+DATA_PATH = "data/processed/geouser.csv"
 MODEL_DIR = Path("models")
-MAX_INTERESTS = 10
+MAX_INTERESTS = 31
 BATCH_SIZE = 256
-EPOCHS = 5
+EPOCHS = 20
 LEARNING_RATE = 1e-3
 NEGATIVES_PER_POSITIVE = 2
-
 
 def train() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info("Using device: %s", device)
-
     raw_users = load_users(DATA_PATH)
     users = preprocess_users(raw_users)
     train_users, val_users, test_users = split_dataset(users)
-
-    # Encoder is fit on train only, to avoid val/test leakage into the
-    # learned vocab/scaler state.
     encoder = FeatureEncoder(max_interests=MAX_INTERESTS)
     encoder.fit(train_users)
-
     train_sampler = PairSampler(train_users, negatives_per_positive=NEGATIVES_PER_POSITIVE, seed=42)
     val_sampler = PairSampler(val_users, negatives_per_positive=NEGATIVES_PER_POSITIVE, seed=123)
     test_sampler = PairSampler(test_users, negatives_per_positive=NEGATIVES_PER_POSITIVE, seed=456)
-
     train_ds = RankingDataset(train_sampler, encoder)
     val_ds = RankingDataset(val_sampler, encoder)
     test_ds = RankingDataset(test_sampler, encoder)
-
     train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, collate_fn=ranking_collate_fn)
     val_loader = DataLoader(val_ds, batch_size=BATCH_SIZE, shuffle=False, collate_fn=ranking_collate_fn)
     test_loader = DataLoader(test_ds, batch_size=BATCH_SIZE, shuffle=False, collate_fn=ranking_collate_fn)
-
     model = TwoTowerModel(
         num_interests=encoder.num_interests,
         num_genders=encoder.num_genders,
         num_countries=encoder.num_countries,
     ).to(device)
-
     optimizer = torch.optim.Adam(model.parameters(), lr=LEARNING_RATE)
     criterion = torch.nn.BCELoss()
-
     for epoch in range(1, EPOCHS + 1):
         model.train()
         total_loss = 0.0

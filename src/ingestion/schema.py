@@ -12,6 +12,9 @@ class User:
     interests: list[str]
     city: str
     country: str
+    lat: float
+    lng: float
+
 
     @property
     def interest_set(self) -> set[str]:
@@ -27,6 +30,8 @@ class ProcessedUser:
     interests: list[str]
     city: str
     country: str
+    lat: float
+    lng: float
 
     @property
     def interest_set(self) -> set[str]:
