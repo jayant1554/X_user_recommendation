@@ -67,7 +67,7 @@ Endpoints:
 - POST /recommend
 - POST /recommend/raw
 
-### 5. Run the offline verification script
+### 5. Run the offline verification test script
 
 ```bash
 python -m scripts.generate_test_user
@@ -127,12 +127,14 @@ The pair sampler in `src/ranking/pair_sampler.py` creates positive and negative 
 
 With the pair sampler, the model can learn to distinguish between users who are similar and those who are not, which improves the quality of the recommendations.
 Without this step, the model would not have enough training data to learn meaningful relationships between users.
+
 ## Model Architecture & Design Decisions
-two-tower (Siamese) neural model with shared weights.A single `UserTower` encodes both the target user and each candidate independently mean-pooled interest embeddings + gender/country embeddings + raw scalar features (age, lat, lng) → small MLP → fixed-size embedding. Embeddings are compared via cosine similarity, scaled by a learned temperature, then passed through a sigmoid to get a match probability.
+I went with a two-tower (Siamese) setup that shares weights. One `UserTower` handles both the target user and every candidate the same way: it mean-pools their interest embeddings, throws in gender and country embeddings, adds the raw scalars (age, lat, lng), runs everything through a small MLP, and spits out a fixed-size embedding. Those two embeddings get compared with cosine similarity, scaled by a learned temperature, then pushed through a sigmoid to produce a match probability.
 
-why two-tower, not a joint MLP:the two "sides" being compared (target user, candidate user) share an identical feature schema, so a single shared encoder is enough, no need to learn two separate towers. More importantly, because the model never mixes target and candidate features before encoding, candidate embeddings can be precomputed and reused across every query. A joint model would require a full forward pass per (target, candidate) pair at inference, which doesn't scale past a few hundred candidates.
+why two-tower, not a joint MLP?
+Because the two "sides" being compared (target user, candidate user) share an identical feature schema, so a single shared encoder is enough, no need to learn two separate towers as they have same features. The model never mixes target and candidate features before encoding, candidate embeddings can be precomputed and reused across every query.
 
-Why tiered retrieval instead of full kNN over all users: running the neural model against every user in the database is wasteful when most candidates are obviously irrelevant (different country, no shared interests). Retrieval narrows the candidate pool cheaply first (same-city → same-country → global) using Jaccard interest overlap and geography, and only the surviving candidates get scored by the neural model. It makkes inference cheap without sacrificing recall for the users most likely to be good matches.
+On the retrieval side i use a fastfilter instead of running kNN over the entire user base. Scoring every single user with the neural model is wasteful when most of them are irrelevant. So i first narrow the pool with simple, fast filters—same city, then same country, then global—using Jaccard interest overlap plus basic geography. Only the candidates that survive that stage get scored by the neural model. It keeps inference fast while still catching the people who are actually likely to be good matches.
 
 ## Trade-offs and constraints
 
@@ -146,25 +148,25 @@ Some Trade-offs and constraints that influenced the design:
 
 ![Scaled architecture diagram](docs/scale.png)
 
-Right now everything runs in one process users in memory, retrieval done with simple tiered filtering (same-city → same-country → global), and the two-tower model scoring candidates in a single batched matmul. Fine for this dataset, but it wouldn't survive real production load. Here's how I'd scale each piece:
+Right now everything runs in one process users in memory, retrieval done with simple tiered filtering and the two-tower model scoring candidates in a single batched matmul. Fine for this dataset, but it wouldn't survive real production load. Here's how I'd scale each piece:
 
-Feature store. Move users and features out of memory into Postgres/DynamoDB for profiles and Redis for hot lookups  the API shouldn't be holding the whole user table in RAM.
+- Feature store should be used to move users and features out of memory into Postgres/DynamoDB for profile.
 
-Retrieval → real ANN index. The city → country → global tiering is basically a manual approximation of nearest-neighbor search. I'd replace it with FAISS or a managed vector DB, indexing embeddings from `UserTower.encode()`, with geo/interest as filters inside the query instead of sequential fallback tiers.
+- In production i would shifft from Retrieval stage to  real ANN index. I'd replace it with FAISS or a managed vector DB, indexing embeddings from `UserTower.encode()`, with geo/interest as filters inside the query instead of sequential fallback tiers.
 
-Ranking as its own service. Since candidate embeddings are precomputed and the target only needs encoding once per request, ranking doesn't need to live with the API. I'd split it into its own GPU-backed inference service (TorchServe or a FastAPI microservice) so it scales independently.
+- I would make ranking as its own service, Since candidate embeddings are precomputed and the target only needs encoding once per request, ranking doesn't need to live with the API. I'd split it into its own GPU-backed inference service (TorchServe or a FastAPI microservice) so it scales independently.
 
-Cache candidate embeddings. They don't change unless the profile does, so precompute once and cache them rather than recomputing on every request probably the biggest latency win at scale.
+- I would Cache candidate embeddings. They don't change unless the profile does, so precompute once and cache them rather than recomputing on every request probably the biggest latency win at scale.
 
-Async profile updates.Re-embedding and re-indexing on profile change shouldn't block the request path  push it to a queue (Kafka) with a worker handling it in the background.
+- Add Async profile updates.Re-embedding and re-indexing on profile change shouldn't block the API. I'd make it async to handle updates in the background.
 
-Autoscale the API layer. Once features/embeddings live outside the process, the API is stateless and can scale horizontally behind a load balancer  the easy part once the stateful pieces are moved out.
+- I would Autoscale the API layer. Once features/embeddings live outside the process, the API is stateless and can scale horizontally behind a load balancer  the easy part once the stateful pieces are moved out.
 
 
 ## AI & external code attribution
 
 I have used googel gemini img model to generate the img  generation for the architecture diagram in the docs folder. The diagram is a visual representation of the system flow and was created using AI assistance.
-
+I used claude fto help structure the README for my own notes and learnings.
 I have used claude  to help improve the multi-level  fallback matching  logic in the `geotest.py` file. The initial version only matched on exact city + country pairs, which caused a significant amount of data loss
 Before the fallback chain runs, a separate issue had to be handled: The `worldcities.csv` file 
 uses inconsistent or legacy country naming conventions that don't match how users raw data expresses the same country.
