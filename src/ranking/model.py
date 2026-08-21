@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-RETRIEVAL_SCORE_WEIGHT = 0.7
-NEURAL_SCORE_WEIGHT = 0.3
+RETRIEVAL_SCORE_WEIGHT = 0.6
+NEURAL_SCORE_WEIGHT = 0.4
 
 
 class UserTower(nn.Module):

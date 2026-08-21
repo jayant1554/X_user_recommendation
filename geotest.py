@@ -1,13 +1,3 @@
-"""
-Join user data (City, Country) against worldcities.csv to attach lat/lng.
-
-Matching priority:
-1. Exact city + country
-2. City only (most populous city)
-3. Country capital
-4. No match
-"""
-
 import re
 import unicodedata
 import pandas as pd
@@ -104,7 +94,6 @@ def build_reference(worldcities_path):
     )
 
     wc_sorted = wc.sort_values("population", ascending=False)
-
     # ----------------------------------------------------------
     # Exact city + country
     # ----------------------------------------------------------

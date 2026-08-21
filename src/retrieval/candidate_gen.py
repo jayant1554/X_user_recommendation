@@ -30,12 +30,7 @@ def haversine_distance(
     lat2: float,
     lon2: float,
 ) -> float:
-    """
-    Great-circle distance in kilometers.
-    """
-
-    R = 6371.0
-
+    R = 6371.0  # Radius of the Earth in kilometers
     lat1 = radians(lat1)
     lon1 = radians(lon1)
     lat2 = radians(lat2)
